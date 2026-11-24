@@ -28,7 +28,9 @@ document.querySelectorAll("[data-page]").forEach((element) => {
   element.addEventListener("click", () => navigate(element.dataset.page));
 });
 
-let coins = Number(localStorage.getItem("pixel-world-coins")) || 2450;
+const storedCoins = localStorage.getItem("pixel-world-coins");
+let coins = storedCoins === null ? 2450 : Number(storedCoins);
+if (!Number.isFinite(coins) || coins < 0) coins = 2450;
 const coinDisplay = document.querySelector("#coin-count");
 const formatCoins = (value) => new Intl.NumberFormat("pt-BR").format(value);
 
@@ -36,6 +38,8 @@ function updateCoins() {
   coinDisplay.textContent = formatCoins(coins);
   localStorage.setItem("pixel-world-coins", String(coins));
 }
+
+updateCoins();
 
 const savedName = localStorage.getItem("pixel-world-name") || "Luna";
 document.querySelector("#name-input").value = savedName;
@@ -91,7 +95,7 @@ function paintAvatar(saved = false) {
       || swatch.dataset.shirt === avatar.shirt
       || swatch.dataset.bottom === avatar.bottom;
     if (active) swatch.classList.add("selected");
-    else if (swatch.matches(".skin-swatches *, .hair-swatches *, .clothes-swatches *")) swatch.classList.remove("selected");
+    else if (swatch.matches(".skin-swatches *, .hair-swatches *, .clothes-swatches *, .bottom-swatches *")) swatch.classList.remove("selected");
   });
   document.querySelectorAll("[data-hair]").forEach((button) => button.classList.toggle("selected", button.dataset.hair === avatar.hairStyle));
   document.querySelectorAll("[data-accessory]").forEach((button) => button.classList.toggle("selected", button.dataset.accessory === avatar.accessory));
@@ -170,6 +174,7 @@ document.querySelector("#room-reset").addEventListener("click", () => {
   document.querySelector("#room-scene").classList.remove("has-plant", "has-lamp", "has-rug");
   savedFurniture = [];
   localStorage.setItem("pixel-world-furniture", JSON.stringify(savedFurniture));
+  roomLayout = {};
   localStorage.removeItem("pixel-world-room-layout");
   document.querySelectorAll("[data-movable]").forEach((item) => {
     item.style.left = "";
@@ -213,6 +218,14 @@ document.querySelectorAll("[data-movable]").forEach((item) => {
   let grabOffsetX = 0;
   let grabOffsetY = 0;
   let parentBounds;
+  const savePosition = () => {
+    if (!item.style.left || !item.style.top) return;
+    roomLayout[item.dataset.piece] = {
+      left: parseFloat(item.style.left),
+      top: parseFloat(item.style.top),
+    };
+    localStorage.setItem("pixel-world-room-layout", JSON.stringify(roomLayout));
+  };
 
   item.addEventListener("pointerdown", (event) => {
     if (event.button !== 0) return;
@@ -240,11 +253,12 @@ document.querySelectorAll("[data-movable]").forEach((item) => {
     if (!item.hasPointerCapture(event.pointerId)) return;
     item.releasePointerCapture(event.pointerId);
     item.classList.remove("is-dragging");
-    roomLayout[item.dataset.piece] = {
-      left: parseFloat(item.style.left),
-      top: parseFloat(item.style.top),
-    };
-    localStorage.setItem("pixel-world-room-layout", JSON.stringify(roomLayout));
+    savePosition();
+  });
+
+  item.addEventListener("pointercancel", () => {
+    item.classList.remove("is-dragging");
+    savePosition();
   });
 });
 
